@@ -1,10 +1,14 @@
 package eu.kanade.tachiyomi.extension.es.dragontranslationorg
 
 import eu.kanade.tachiyomi.multisrc.madara.Madara
+import eu.kanade.tachiyomi.source.model.MangasPage
 import eu.kanade.tachiyomi.source.model.SChapter
 import keiyoushi.annotation.Source
+import keiyoushi.network.get
 import keiyoushi.network.rateLimit
+import keiyoushi.utils.asJsoup
 import keiyoushi.utils.parseAs
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
@@ -48,4 +52,24 @@ abstract class DragonTranslationOrg : Madara() {
                 date_upload = parseChapterDate(chapterDto.ago)
             }
         }
+
+    // Recientes: el sitio ya no responde al orden "_latest_update" por admin-ajax,
+    // pero sí a /manga/?m_orderby=latest (y /manga/page/N/?m_orderby=latest).
+    override suspend fun getLatestUpdates(page: Int): MangasPage {
+        val url = baseUrl.toHttpUrl().newBuilder().apply {
+            addPathSegment(mangaSubString)
+            if (page > 1) {
+                addPathSegment("page")
+                addPathSegment(page.toString())
+            }
+            addPathSegment("")
+            addQueryParameter("m_orderby", "latest")
+        }.build()
+
+        val document = client.get(url).asJsoup()
+        val mangas = parseArchive(document)
+        val hasNextPage = document.selectFirst("a.nextpostslink, a.next, link[rel=next]") != null
+
+        return MangasPage(mangas, hasNextPage && mangas.isNotEmpty())
+    }
 }
