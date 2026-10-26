@@ -1,0 +1,39 @@
+name: Build one extension
+
+on:
+  workflow_dispatch:
+    inputs:
+      extension:
+        description: "Ruta de la extensión (ej: es/dragontranslationorg)"
+        required: true
+        default: "es/dragontranslationorg"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          distribution: temurin
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build APK
+        run: |
+          MODULE=":src:$(echo '${{ github.event.inputs.extension }}' | tr '/' ':')"
+          echo "Compilando $MODULE"
+          chmod +x ./gradlew
+          ./gradlew "$MODULE:assembleDebug" --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.event.inputs.extension == '' && 'apk' || 'apk' }}
+          path: src/${{ github.event.inputs.extension }}/build/outputs/apk/**/*.apk
+          if-no-files-found: error
