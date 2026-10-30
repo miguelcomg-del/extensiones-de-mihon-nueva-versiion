@@ -23,7 +23,10 @@ abstract class DragonTranslationOrg : Madara() {
     override fun OkHttpClient.Builder.configureClient() = rateLimit(3)
 
     override val filterGenresSelector = ".filters"
-    override fun archiveSelector() = "a:has(img.ac-cover)"
+
+    // Enlaces a fichas de manga: /manga/slug/ con atributo title, sin depender de <img>
+    override fun archiveSelector() =
+        "a[href*=/manga/][title]:not([href*=?]):not([href*=/page/])"
     override val archiveUrlSelector = "a"
 
     override val mangaDetailsSelectorTitle = "div.hero h1"
@@ -36,6 +39,22 @@ abstract class DragonTranslationOrg : Madara() {
 
     override fun archiveManga(element: Element, id: String) = super.archiveManga(element, id)?.apply {
         element.attr("title").takeIf(String::isNotBlank)?.let { title = it }
+        if (thumbnail_url.isNullOrBlank()) {
+            thumbnail_url = element.findCoverUrl()
+        }
+    }
+
+    private fun Element.findCoverUrl(): String? {
+        val attrs = listOf("data-src", "data-lazy-src", "data-bg", "data-background", "data-cover", "data-image", "data-original")
+        for (el in select(attrs.joinToString(",") { "[$it]" })) {
+            for (attr in attrs) {
+                val value = el.absUrl(attr)
+                if (value.isNotBlank()) return value
+            }
+        }
+        val style = selectFirst("[style*=url]")?.attr("style") ?: return null
+        val raw = Regex("""url\(['"]?([^'")]+)""").find(style)?.groupValues?.get(1) ?: return null
+        return baseUrl.toHttpUrl().resolve(raw)?.toString()
     }
 
     override fun getChapterUrl(chapter: SChapter) = "$baseUrl${chapter.url}"
@@ -59,7 +78,6 @@ abstract class DragonTranslationOrg : Madara() {
         }
     }
 
-    // Populares y Recientes por GET (el sitio lista en /manga/?m_orderby=views|latest)
     override suspend fun getPopularManga(page: Int): MangasPage = fetchListing(page, "views")
 
     override suspend fun getLatestUpdates(page: Int): MangasPage = fetchListing(page, "latest")
@@ -77,13 +95,11 @@ abstract class DragonTranslationOrg : Madara() {
 
         val response = client.get(url)
         val document = response.asJsoup()
-        val mangas = parseArchive(document)
+        val mangas = parseArchive(document).distinctBy { it.url }
 
         if (mangas.isEmpty() && page == 1) {
-            error(
-                "DEBUG lista: HTTP ${response.code} | ${response.request.url} | " +
-                    "titulo: ${document.title()} | texto: ${document.body().text().take(200)}",
-            )
+            val links = document.select("a[href*=/manga/]").take(3).joinToString(" || ") { it.outerHtml().take(160) }
+            error("DEBUG lista vacia | enlaces: $links")
         }
 
         val hasNextPage = document.selectFirst("a.nextpostslink, a.next, link[rel=next]") != null ||
