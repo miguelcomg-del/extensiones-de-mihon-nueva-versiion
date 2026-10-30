@@ -25,8 +25,7 @@ abstract class DragonTranslationOrg : Madara() {
     override val filterGenresSelector = ".filters"
 
     // Enlaces a fichas de manga: /manga/slug/ con atributo title, sin depender de <img>
-    override fun archiveSelector() =
-        "a[href*=/manga/][title]:not([href*=?]):not([href*=/page/])"
+    override fun archiveSelector() = "a[href*=/manga/][title]:not([href*=?]):not([href*=/page/])"
     override val archiveUrlSelector = "a"
 
     override val mangaDetailsSelectorTitle = "div.hero h1"
