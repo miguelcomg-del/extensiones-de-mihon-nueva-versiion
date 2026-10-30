@@ -44,18 +44,27 @@ abstract class DragonTranslationOrg : Madara() {
         mangaPath: String,
         id: String,
         mangaPage: Document?,
-    ) = mangaPage!!.selectFirst("#mkChapters script[type=application/json]")!!.data()
-        .parseAs<ChapterListDto>().items.map { chapterDto ->
+    ): List<SChapter> {
+        val json = mangaPage?.selectFirst("#mkChapters script[type=application/json]")?.data()
+            ?: error(
+                "DEBUG capitulos: no se encontro #mkChapters | titulo: ${mangaPage?.title()} | " +
+                    "texto: ${mangaPage?.body()?.text()?.take(150)}",
+            )
+        return json.parseAs<ChapterListDto>().items.map { chapterDto ->
             SChapter.create().apply {
                 setUrlWithoutDomain(chapterDto.url)
                 name = chapterDto.name
                 date_upload = parseChapterDate(chapterDto.ago)
             }
         }
+    }
 
-    // Recientes: el sitio ya no responde al orden "_latest_update" por admin-ajax,
-    // pero sí a /manga/?m_orderby=latest (y /manga/page/N/?m_orderby=latest).
-    override suspend fun getLatestUpdates(page: Int): MangasPage {
+    // Populares y Recientes por GET (el sitio lista en /manga/?m_orderby=views|latest)
+    override suspend fun getPopularManga(page: Int): MangasPage = fetchListing(page, "views")
+
+    override suspend fun getLatestUpdates(page: Int): MangasPage = fetchListing(page, "latest")
+
+    private suspend fun fetchListing(page: Int, orderBy: String): MangasPage {
         val url = baseUrl.toHttpUrl().newBuilder().apply {
             addPathSegment(mangaSubString)
             if (page > 1) {
@@ -63,12 +72,22 @@ abstract class DragonTranslationOrg : Madara() {
                 addPathSegment(page.toString())
             }
             addPathSegment("")
-            addQueryParameter("m_orderby", "latest")
+            addQueryParameter("m_orderby", orderBy)
         }.build()
 
-        val document = client.get(url).asJsoup()
+        val response = client.get(url)
+        val document = response.asJsoup()
         val mangas = parseArchive(document)
-        val hasNextPage = document.selectFirst("a.nextpostslink, a.next, link[rel=next]") != null
+
+        if (mangas.isEmpty() && page == 1) {
+            error(
+                "DEBUG lista: HTTP ${response.code} | ${response.request.url} | " +
+                    "titulo: ${document.title()} | texto: ${document.body().text().take(200)}",
+            )
+        }
+
+        val hasNextPage = document.selectFirst("a.nextpostslink, a.next, link[rel=next]") != null ||
+            document.selectFirst("a[href*=/page/${page + 1}/]") != null
 
         return MangasPage(mangas, hasNextPage && mangas.isNotEmpty())
     }
