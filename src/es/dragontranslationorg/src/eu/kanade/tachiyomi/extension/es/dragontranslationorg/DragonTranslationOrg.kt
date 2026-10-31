@@ -28,11 +28,12 @@ abstract class DragonTranslationOrg : Madara() {
     override fun archiveSelector() = "a[href*=/manga/][title]:not([href*=?]):not([href*=/page/])"
     override val archiveUrlSelector = "a"
 
-    override val mangaDetailsSelectorTitle = "div.hero h1"
-    override val mangaDetailsSelectorStatus = "div.htags > span.htag"
-    override val mangaDetailsSelectorDescription = "div.syn > p"
-    override val mangaDetailsSelectorThumbnail = "div.hposter img"
-    override val mangaDetailsSelectorGenre = "div.hchips a.chip"
+    // Ficha (rediseño): un único h1 con una etiqueta "manhwa" dentro; ownText() la excluye
+    override val mangaDetailsSelectorTitle = "h1"
+    override val mangaDetailsSelectorStatus = "div.sinfo-grid > div:has(span.l:matchesOwn(^Estado$)) > span.v"
+    override val mangaDetailsSelectorDescription = "div.ratecard + div p"
+    override val mangaDetailsSelectorThumbnail = "img.wp-post-image"
+    override val mangaDetailsSelectorGenre = "span.hchips-label ~ a"
 
     override val pageListParseSelector = "div.reading-content img.wp-manga-chapter-img"
 
@@ -58,14 +59,15 @@ abstract class DragonTranslationOrg : Madara() {
 
     override fun getChapterUrl(chapter: SChapter) = "$baseUrl${chapter.url}"
 
+    // El JSON con todos los capítulos sigue en la ficha, pero ya no está dentro de #mkChapters
     override suspend fun fetchChapters(
         mangaPath: String,
         id: String,
         mangaPage: Document?,
     ): List<SChapter> {
-        val json = mangaPage?.selectFirst("#mkChapters script[type=application/json]")?.data()
+        val json = mangaPage?.selectFirst("script[type=application/json]:containsData(mangaId)")?.data()
             ?: error(
-                "DEBUG capitulos: no se encontro #mkChapters | titulo: ${mangaPage?.title()} | " +
+                "DEBUG capitulos: no se encontro el JSON | titulo: ${mangaPage?.title()} | " +
                     "texto: ${mangaPage?.body()?.text()?.take(150)}",
             )
         return json.parseAs<ChapterListDto>().items.map { chapterDto ->
