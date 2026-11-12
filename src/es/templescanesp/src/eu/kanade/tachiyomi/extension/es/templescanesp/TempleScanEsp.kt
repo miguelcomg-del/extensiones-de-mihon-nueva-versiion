@@ -88,7 +88,7 @@ abstract class TempleScanEsp : Madara() {
         val slug = obj.str("series_slug") ?: obj.str("slug") ?: return null
         val name = obj.str("title") ?: obj.str("nombre") ?: return null
         return SManga.create().apply {
-            url = "/comic/$slug"
+            url = "/comic/$slug/"
             title = name
             thumbnail_url = coverUrl(obj.str("thumbnail") ?: obj.str("portada_url"))
         }
@@ -130,7 +130,7 @@ abstract class TempleScanEsp : Madara() {
     }
 
     private fun parseAedexDetails(document: Document, slug: String): SManga = SManga.create().apply {
-        url = "/comic/$slug"
+        url = "/comic/$slug/"
         title = document.selectFirst("h1")?.text()?.takeIf { it.isNotBlank() }
             ?: document.selectFirst("meta[property=og:title]")?.attr("content")?.substringBefore(" - ")
             ?: slug
