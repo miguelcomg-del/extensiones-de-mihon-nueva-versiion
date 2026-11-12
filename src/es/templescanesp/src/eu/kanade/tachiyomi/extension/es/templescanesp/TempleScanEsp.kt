@@ -66,7 +66,7 @@ abstract class TempleScanEsp : Madara() {
         }.build()
 
         val rsc = client.get(url).asJsoup().flightData()
-        val json = listOf("initialComics", "comics", "series", "mangas", "results")
+        val json = listOf("initialComics", "allComics", "comics", "series", "mangas", "results")
             .firstNotNullOfOrNull { extractJson(rsc, "\"$it\":") }
             ?: error(
                 "DEBUG biblioteca: no encontre la lista | claves: " +
