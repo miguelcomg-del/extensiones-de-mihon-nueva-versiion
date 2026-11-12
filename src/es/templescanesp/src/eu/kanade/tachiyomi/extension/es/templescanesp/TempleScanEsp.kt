@@ -75,7 +75,7 @@ abstract class TempleScanEsp : Madara() {
         val array = Json.parseToJsonElement(json) as? JsonArray ?: error("DEBUG biblioteca: formato inesperado")
 
         var mangas = array.mapNotNull { (it as? JsonObject)?.let(::comicFromJson) }
-        val hasNextPage = mangas.size >= 20
+        val hasNextPage = mangas.size >= IsNotEmpty()
 
         if (query.isNotBlank()) {
             val wanted = query.normalized()
