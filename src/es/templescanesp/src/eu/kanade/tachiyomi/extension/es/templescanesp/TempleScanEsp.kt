@@ -130,7 +130,7 @@ abstract class TempleScanEsp : Madara() {
     }
 
     private fun parseAedexDetails(document: Document, slug: String): SManga = SManga.create().apply {
-        url = "/comic/$slug/"
+        url = "/serie/$slug/"
         title = document.selectFirst("h1")?.text()?.takeIf { it.isNotBlank() }
             ?: document.selectFirst("meta[property=og:title]")?.attr("content")?.substringBefore(" - ")
             ?: slug
