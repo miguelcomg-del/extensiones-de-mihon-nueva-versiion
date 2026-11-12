@@ -170,7 +170,7 @@ abstract class TempleScanEsp : Madara() {
 
     override fun getChapterUrl(chapter: SChapter) = "$baseUrl${chapter.url}"
 
-        // El lector del sitio solo funciona en un navegador. Devolvemos una única página cuya
+    // El lector del sitio solo funciona en un navegador. Devolvemos una única página cuya
     // "imagen" es la dirección del capítulo: falla al cargar y Mihon ofrece "Abrir en WebView".
     override suspend fun getPageList(chapter: SChapter): List<Page> {
         val chapterUrl = getChapterUrl(chapter)
