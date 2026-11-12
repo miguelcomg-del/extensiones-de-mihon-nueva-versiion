@@ -54,7 +54,7 @@ abstract class TempleScanEsp : Madara() {
 
     override suspend fun getSearchMangaList(page: Int, query: String, filters: FilterList): MangasPage = fetchLibrary(page, query)
 
-        private suspend fun fetchLibrary(page: Int, query: String = ""): MangasPage {
+    private suspend fun fetchLibrary(page: Int, query: String = ""): MangasPage {
         val url = "$baseUrl/api/backend/mangas".toHttpUrl().newBuilder().apply {
             addQueryParameter("limit", "20")
             addQueryParameter("page", page.toString())
