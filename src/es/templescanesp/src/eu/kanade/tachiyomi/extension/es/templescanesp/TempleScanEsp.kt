@@ -54,25 +54,24 @@ abstract class TempleScanEsp : Madara() {
 
     override suspend fun getSearchMangaList(page: Int, query: String, filters: FilterList): MangasPage = fetchLibrary(page, query)
 
-    private suspend fun fetchLibrary(page: Int, query: String = ""): MangasPage {
-        val url = "$baseUrl/comics".toHttpUrl().newBuilder().apply {
+        private suspend fun fetchLibrary(page: Int, query: String = ""): MangasPage {
+        val url = "$baseUrl/api/backend/mangas".toHttpUrl().newBuilder().apply {
+            addQueryParameter("limit", "20")
             addQueryParameter("page", page.toString())
+            addQueryParameter("sort", "-fecha_ultimo_capitulo")
             if (query.isNotBlank()) {
-                // No sé cuál de estos nombres usa el sitio; los demás se ignoran
                 addQueryParameter("search", query)
                 addQueryParameter("q", query)
                 addQueryParameter("title", query)
             }
         }.build()
 
-        val rsc = client.get(url).asJsoup().flightData()
-        val json = listOf("initialComics", "allComics", "comics", "series", "mangas", "results")
-            .firstNotNullOfOrNull { extractJson(rsc, "\"$it\":") }
-            ?: error(
-                "DEBUG biblioteca: no encontre la lista | claves: " +
-                    Regex("\"([A-Za-z_]+)\":\\[").findAll(rsc).map { it.groupValues[1] }.distinct().take(15).toList(),
-            )
-        val array = Json.parseToJsonElement(json) as? JsonArray ?: error("DEBUG biblioteca: formato inesperado")
+        val text = client.get(url).use { it.body.string() }
+        val root = Json.parseToJsonElement(text)
+        val array = root as? JsonArray
+            ?: (root as? JsonObject)?.get("data") as? JsonArray
+            ?: (root as? JsonObject)?.get("mangas") as? JsonArray
+            ?: error("DEBUG biblioteca: formato inesperado | ${text.take(200)}")
 
         var mangas = array.mapNotNull { (it as? JsonObject)?.let(::comicFromJson) }
         val hasNextPage = mangas.isNotEmpty()
