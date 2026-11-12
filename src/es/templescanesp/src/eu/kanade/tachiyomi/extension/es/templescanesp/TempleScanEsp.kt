@@ -88,7 +88,7 @@ abstract class TempleScanEsp : Madara() {
         val slug = obj.str("series_slug") ?: obj.str("slug") ?: return null
         val name = obj.str("title") ?: obj.str("nombre") ?: return null
         return SManga.create().apply {
-            url = "/comic/$slug/"
+            url = "/serie/$slug/"
             title = name
             thumbnail_url = coverUrl(obj.str("thumbnail") ?: obj.str("portada_url"))
         }
