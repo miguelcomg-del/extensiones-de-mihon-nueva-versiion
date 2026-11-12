@@ -6,7 +6,7 @@ on:
       extension:
         description: "Ruta de la extensión (ej: es/dragontranslationorg)"
         required: true
-        default: "es/dragontranslationorg"
+        default: "es/templescanesp"
 
 jobs:
   build:
