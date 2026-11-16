@@ -191,36 +191,41 @@ abstract class TempleScanEsp : Madara() {
     }
 
     private fun extractJson(text: String, key: String): String? {
-        val keyIndex = text.indexOf(key)
-        if (keyIndex < 0) return null
-        var start = keyIndex + key.length
-        while (start < text.length && text[start].isWhitespace()) start++
-        val open = text.getOrNull(start) ?: return null
-        if (open != '[' && open != '{') return null
-        val close = if (open == '[') ']' else '}'
-        var depth = 0
-        var inString = false
-        var escaped = false
-        for (i in start until text.length) {
-            val c = text[i]
-            if (inString) {
-                if (escaped) {
-                    escaped = false
-                } else if (c == '\\') {
-                    escaped = true
-                } else if (c == '"') {
-                    inString = false
+        var fromIndex = 0
+        while (true) {
+            val keyIndex = text.indexOf(key, fromIndex)
+            if (keyIndex < 0) return null
+            var start = keyIndex + key.length
+            while (start < text.length && text[start].isWhitespace()) start++
+            val open = text.getOrNull(start)
+            if (open == '[' || open == '{') {
+                val close = if (open == '[') ']' else '}'
+                var depth = 0
+                var inString = false
+                var escaped = false
+                for (i in start until text.length) {
+                    val c = text[i]
+                    if (inString) {
+                        if (escaped) {
+                            escaped = false
+                        } else if (c == '\\') {
+                            escaped = true
+                        } else if (c == '"') {
+                            inString = false
+                        }
+                    } else if (c == '"') {
+                        inString = true
+                    } else if (c == open) {
+                        depth++
+                    } else if (c == close) {
+                        depth--
+                        if (depth == 0) return text.substring(start, i + 1)
+                    }
                 }
-            } else if (c == '"') {
-                inString = true
-            } else if (c == open) {
-                depth++
-            } else if (c == close) {
-                depth--
-                if (depth == 0) return text.substring(start, i + 1)
+                return null
             }
+            fromIndex = keyIndex + key.length
         }
-        return null
     }
 
     private fun JsonObject.str(key: String): String? = (this[key] as? JsonPrimitive)?.contentOrNull
