@@ -128,21 +128,27 @@ abstract class TempleScanEsp : Madara() {
         return SMangaUpdate(details, chapterList)
     }
 
-    private fun parseAedexDetails(document: Document, slug: String): SManga = SManga.create().apply {
-        url = "/serie/$slug/"
-        title = document.selectFirst("h1")?.text()?.takeIf { it.isNotBlank() }
-            ?: document.selectFirst("meta[property=og:title]")?.attr("content")?.substringBefore(" - ")
-            ?: slug
-        description = document.selectFirst("meta[property=og:description]")
-            ?.attr("content")
-            ?.replace("\r\n", "\n")
-            ?.takeIf { it.isNotBlank() }
-        thumbnail_url = document.selectFirst("meta[property=og:image]")?.attr("content")?.takeIf { it.isNotBlank() }
-        genre = document.select("a[href^='/comics?genre=']").eachText().distinct().joinToString().ifBlank { null }
-        status = document.select("article span")
-            .filter { it.ownText().length < 20 }
-            .map { statusFrom(it.ownText()) }
-            .firstOrNull { it != SManga.UNKNOWN } ?: SManga.UNKNOWN
+    private fun parseAedexChapters(document: Document, slug: String): List<SChapter> {
+        val rsc = document.flightData()
+        val json = extractJson(rsc, "\"capitulos\":")
+            ?: error("DEBUG capitulos: no encontre la lista | titulo: ${document.title()}")
+        val array = Json.parseToJsonElement(json) as? JsonArray ?: error("DEBUG capitulos: formato inesperado")
+        return array.mapNotNull { element ->
+            val obj = element as? JsonObject ?: return@mapNotNull null
+            val published = obj.str("estado")
+            if (published != null && published != "publicado") return@mapNotNull null
+            val chapterSlug = obj.str("chapter_slug") ?: obj.str("numero") ?: return@mapNotNull null
+            val number = obj.str("chapter_number")?.toDoubleOrNull()
+                ?: obj.str("numero")?.toDoubleOrNull()
+                ?: 0.0
+            number to SChapter.create().apply {
+                url = "/comic/$slug/$chapterSlug"
+                name = obj.str("chapter_name") ?: obj.str("titulo") ?: "Capítulo $chapterSlug"
+                date_upload = parseIsoDate(obj.str("date_created"))
+            }
+        }
+            .sortedByDescending { it.first }
+            .map { it.second }
     }
 
     private fun parseAedexChapters(document: Document, slug: String): List<SChapter> {
