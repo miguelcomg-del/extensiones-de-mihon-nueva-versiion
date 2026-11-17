@@ -151,23 +151,6 @@ abstract class TempleScanEsp : Madara() {
             .map { it.second }
     }
 
-    private fun parseAedexChapters(document: Document, slug: String): List<SChapter> {
-        val rsc = document.flightData()
-        val json = extractJson(rsc, "\"capitulos\":")
-            ?: error("DEBUG capitulos: no encontre la lista | titulo: ${document.title()}")
-        val array = Json.parseToJsonElement(json) as? JsonArray ?: error("DEBUG capitulos: formato inesperado")
-        return array.mapNotNull { element ->
-            val obj = element as? JsonObject ?: return@mapNotNull null
-            val published = obj.str("estado")
-            if (published != null && published != "publicado") return@mapNotNull null
-            val chapterSlug = obj.str("chapter_slug") ?: obj.str("numero") ?: return@mapNotNull null
-            SChapter.create().apply {
-                url = "/comic/$slug/$chapterSlug"
-                name = obj.str("chapter_name") ?: obj.str("titulo") ?: "Capítulo $chapterSlug"
-                date_upload = parseIsoDate(obj.str("date_created"))
-            }
-        }
-    }
 
     override suspend fun fetchRelatedMangaList(manga: SManga): List<SManga> = emptyList()
 
