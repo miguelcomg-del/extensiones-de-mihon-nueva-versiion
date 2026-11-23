@@ -1,3 +1,4 @@
+
 package eu.kanade.tachiyomi.extension.es.templescanesp
 
 import eu.kanade.tachiyomi.multisrc.madara.Madara
@@ -170,67 +171,14 @@ abstract class TempleScanEsp : Madara() {
 
     override suspend fun fetchRelatedMangaList(manga: SManga): List<SManga> = emptyList()
 
-           // ---------- Lectura ----------
+    // ---------- Lectura ----------
 
     override fun getChapterUrl(chapter: SChapter) = "$baseUrl${chapter.url}"
 
-    // Extrae las imágenes directamente del HTML/JSON del capítulo, evitando el WebView
-    // y el bloqueo de "Abre Aedex en tu navegador".
+    // El lector del sitio solo funciona en un navegador. Devolvemos una única página cuya
+    // "imagen" es la dirección del capítulo: falla al cargar y Mihon ofrece "Abrir en WebView".
     override suspend fun getPageList(chapter: SChapter): List<Page> {
         val chapterUrl = getChapterUrl(chapter)
-
-        // 1. Petición HTTP normal (esto evita el bloqueo de JavaScript del WebView)
-        val document = client.get(chapterUrl).asJsoup()
-
-        // 2. Intentamos extraer las imágenes de los datos internos de Next.js
-        val rsc = document.flightData()
-
-        // Buscamos palabras clave comunes donde el sitio suele guardar las imágenes
-        val possibleKeys = listOf(
-            "\"images\":",
-            "\"paginas\":",
-            "\"pages\":",
-            "\"imagenes\":",
-            "\"chapterImages\":",
-        )
-
-        for (key in possibleKeys) {
-            val jsonArrayStr = extractJson(rsc, key)
-            if (jsonArrayStr != null) {
-                val array = runCatching { Json.parseToJsonElement(jsonArrayStr) as? JsonArray }.getOrNull()
-                if (array != null) {
-                    val pages = array.mapIndexedNotNull { index, element ->
-                        val url = when (element) {
-                            is JsonPrimitive -> element.contentOrNull
-                            is JsonObject -> element.str("url") ?: element.str("image") ?: element.str("src")
-                            else -> null
-                        }
-                        if (url != null) Page(index, "", url) else null
-                    }
-                    if (pages.isNotEmpty()) return pages
-                }
-            }
-        }
-
-        // 3. Si no están en el JSON, buscamos en las etiquetas <img> del HTML
-        val images = document.select("img").mapNotNull { img ->
-            // Next.js suele usar data-src para lazy loading
-            val src = img.attr("data-src").ifBlank { img.attr("src") }
-            if (src.startsWith("http") || src.startsWith("/")) {
-                if (src.startsWith("/")) "$baseUrl$src" else src
-            } else {
-                null
-            }
-        }.filter {
-            it.contains("chapter") || it.contains("manga") || it.contains("img") || it.contains("uploads")
-        }
-
-        if (images.isNotEmpty()) {
-            return images.mapIndexed { index, url -> Page(index, "", url) }
-        }
-
-        // 4. Fallback: Si todo falla, devolvemos la página web (lo que hacía antes),
-        // pero esto ya no debería pasar si el sitio carga las imágenes en el HTML/JSON.
         return listOf(Page(0, chapterUrl, chapterUrl))
     }
 
