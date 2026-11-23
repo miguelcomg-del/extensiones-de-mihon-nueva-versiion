@@ -170,7 +170,7 @@ abstract class TempleScanEsp : Madara() {
 
     override suspend fun fetchRelatedMangaList(manga: SManga): List<SManga> = emptyList()
 
-       // ---------- Lectura ----------
+           // ---------- Lectura ----------
 
     override fun getChapterUrl(chapter: SChapter) = "$baseUrl${chapter.url}"
 
@@ -178,16 +178,22 @@ abstract class TempleScanEsp : Madara() {
     // y el bloqueo de "Abre Aedex en tu navegador".
     override suspend fun getPageList(chapter: SChapter): List<Page> {
         val chapterUrl = getChapterUrl(chapter)
-        
+
         // 1. Petición HTTP normal (esto evita el bloqueo de JavaScript del WebView)
         val document = client.get(chapterUrl).asJsoup()
 
         // 2. Intentamos extraer las imágenes de los datos internos de Next.js
         val rsc = document.flightData()
-        
+
         // Buscamos palabras clave comunes donde el sitio suele guardar las imágenes
-        val possibleKeys = listOf("\"images\":", "\"paginas\":", "\"pages\":", "\"imagenes\":", "\"chapterImages\":")
-        
+        val possibleKeys = listOf(
+            "\"images\":",
+            "\"paginas\":",
+            "\"pages\":",
+            "\"imagenes\":",
+            "\"chapterImages\":",
+        )
+
         for (key in possibleKeys) {
             val jsonArrayStr = extractJson(rsc, key)
             if (jsonArrayStr != null) {
@@ -195,8 +201,8 @@ abstract class TempleScanEsp : Madara() {
                 if (array != null) {
                     val pages = array.mapIndexedNotNull { index, element ->
                         val url = when (element) {
-                            is JsonPrimitive -> element.contentOrNull // Por si es un array de strings directos
-                            is JsonObject -> element.str("url") ?: element.str("image") ?: element.str("src") // Por si son objetos
+                            is JsonPrimitive -> element.contentOrNull
+                            is JsonObject -> element.str("url") ?: element.str("image") ?: element.str("src")
                             else -> null
                         }
                         if (url != null) Page(index, "", url) else null
@@ -212,8 +218,12 @@ abstract class TempleScanEsp : Madara() {
             val src = img.attr("data-src").ifBlank { img.attr("src") }
             if (src.startsWith("http") || src.startsWith("/")) {
                 if (src.startsWith("/")) "$baseUrl$src" else src
-            } else null
-        }.filter { it.contains("chapter") || it.contains("manga") || it.contains("img") || it.contains("uploads") }
+            } else {
+                null
+            }
+        }.filter {
+            it.contains("chapter") || it.contains("manga") || it.contains("img") || it.contains("uploads")
+        }
 
         if (images.isNotEmpty()) {
             return images.mapIndexed { index, url -> Page(index, "", url) }
